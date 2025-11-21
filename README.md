@@ -1,5 +1,5 @@
 
-PUNTO 1 — Web Scrapping
+# PUNTO 1 — Web Scrapping
 
 # 1. Introducción General
 
@@ -233,3 +233,263 @@ Scripts complementarios ejecutados tras la finalización de las descargas.
 
 * **Función 1:** **Eliminación de imágenes corruptas** o incompletas.
 * **Función 2:** Realiza la **deduplicación** final por hash (`SHA256`) utilizando scripts de apoyo.
+
+## 5. Problemas Reales Durante el Desarrollo y Soluciones
+
+Esta sección detalla los principales obstáculos encontrados durante la implementación y las soluciones técnicas aplicadas, lo que demuestra el cumplimiento de objetivos y el aprendizaje técnico adquirido.
+
+---
+
+## 5.1. Descarga de imágenes irrelevantes
+
+El principal desafío en la fase de extracción fue la **baja precisión** de los resultados de búsqueda de la fuente (`Bing Images`).
+
+* **Problema Real:** Al buscar un término técnico y específico como **"multimeter"** (multímetro), la herramienta de búsqueda tendía a devolver imágenes contextualmente irrelevantes, tales como sillas, escritorios o fotografías de personas utilizando el multímetro, en lugar del dispositivo en sí.
+* **Soluciones Aplicadas:**
+    1.  **Ajuste del Keyword:** Se implementó una estrategia de **ajuste fino de los términos de búsqueda** para intentar acotar los resultados.
+    2.  **Curado en Limpieza Posterior:** Se asumió una fase de **curado manual o semiautomático** como parte del proceso de limpieza posterior para descartar imágenes no deseadas.
+    3.  **Balance de Dataset:** Posteriormente, para diversificar y mejorar la calidad del conjunto de datos, se añadió el término **"transistor"** a la lista de keywords, buscando **balancear** la tipología de las imágenes.
+
+---
+
+### 5.2. Tiempo excesivo de Extracción (>10 horas)
+
+La optimización del tiempo de ejecución fue crítica, ya que el proceso inicial consumía una cantidad de tiempo inaceptable para la escala de datos requerida.
+
+* **Problema Real:** La extracción de aproximadamente **2000 imágenes limpias** requirió un tiempo de ejecución excesivamente largo, lo que afectó la productividad y la iteración del desarrollo:
+    * **5 horas** con Firefox (El proceso falló por errores de perfil del navegador).
+    * **Más de 10 horas en total** para completar las extracciones de solo dos clases con la implementación inicial de **Selenium**.
+* **Intentos de Solución Fallidos:**
+    * Se intentó alternar el *driver* de Selenium entre **Chromium** y **Firefox** para buscar una ganancia de rendimiento, sin éxito significativo.
+    * Se evaluaron métodos externos como la librería **`bing_image_downloader`**, pero se descartaron por falta de flexibilidad o control.
+* **Solución Final Adoptada (Combinación de Enfoques):**
+    1.  **Scraping Multithreading:** Se implementó y optimizó un sistema de **scraping concurrente** utilizando **`multithreading`** para manejar la mayoría de las descargas en paralelo.
+    2.  **Herramienta Alternativa Específica:** Se utilizó una **herramienta alternativa específica** para la extracción del subconjunto de imágenes de **"transistores"**, aprovechando su eficiencia para esa tarea concreta.
+    3.  **Limpieza Posterior Automática:** La dependencia en una **limpieza posterior automática** se incrementó para manejar la escala de datos extraídos rápidamente, compensando la velocidad de extracción con un proceso de filtrado robusto.
+
+### 5.3. Eliminación masiva — Pérdida del 40–60% de imágenes
+
+Después del dedupe por hash:
+  ```bash
+  Eliminados: 1189
+  ```
+- Causas:
+
+  - Imágenes duplicadas en miniaturas/HD.
+
+  - Servidores devolvían la misma imagen con URLs diferentes.
+
+  - Historias de cache del buscador.
+
+- Resultado final:
+
+  - Todas las carpetas quedaron con más de 100 imágenes válidas.
+  - Aunque no se alcanzó exactamente 200 por clase, el dataset es consistente y limpio.
+
+  ## 7. Conclusiones del Punto 1: Logros y Aprendizajes
+
+La ejecución exitosa de este proyecto de construcción de dataset y sistema de scraping condujo a los siguientes logros y aprendizajes clave:
+
+---
+
+### Logros del Proyecto
+
+* **Construcción de un Dataset Personalizado para el Laboratorio:** Se logró crear un dataset de alta calidad, curado y específico, con una cantidad de más de 100 imágenes por clase después de la fase de limpieza y depuración.
+* **Desarrollo de un Sistema de Scraping Robusto y Realista:** Se diseñó y codificó un sistema de extracción que demostró ser capaz de realizar trabajo intensivo de larga duración, resolviendo desafíos reales de estabilidad y gestión de errores.
+* **Implementación de Técnicas Avanzadas de Concurrencia:** Se aplicaron con éxito principios de multithreading y sincronización (Lock, Semaphore) en una aplicación real, con impactos tangibles en la reducción del tiempo de procesamiento.
+
+---
+
+### Aprendizajes Clave
+
+* **Límites y Fallos Comunes del Scraping:** Se obtuvo una experiencia práctica profunda en el manejo y mitigación de problemas intrínsecos al web scraping a gran escala, incluyendo:
+    * **Bloqueos de IP:** Estrategias para evadir o manejar las restricciones del servidor fuente.
+    * **Imágenes Ruidosas:** Gestión de imágenes con contenido contextual irrelevante.
+    * **Contenidos No Relevantes:** Filtrado efectivo de resultados que no cumplen con los requisitos de la clase (ej., errores de keyword).
+    * **Duplicados Masivos:** Implementación de hashing (SHA256) para la detección y eliminación eficiente.
+
+* **Generación de una Arquitectura Escalable:** El diseño modular y desacoplado del sistema sentó las bases para la escalabilidad y la integración futura con módulos de Machine Learning para los siguientes objetivos del proyecto:
+    * Clasificación con MediaPipe.
+    * Reconocimiento de elementos.
+    * Implementación del sistema final en Streamlit.
+
+  ---
+
+## 📁 Estructura del proyecto: tree + explicación completa
+
+A continuación se muestra la estructura final del proyecto de Web Scraping con Python, enriquecida con una explicación exhaustiva de cada componente:
+
+**webscrapping/**
+* **venv/**
+    * ... (Entorno virtual con dependencias)
+* **dataset/**
+    * [Carpetas de Clases]
+        * breadboard/
+        * capacitor_electronic_component/
+        * diode_electronic_component/
+        * function_generator/
+        * multimeter/
+        * oscilloscope/
+        * resistor_electronic_component/
+        * soldering_iron/
+        * stepper_motor/
+        * transistor_electronic_component/
+* **metadata/**
+    * metadata.csv (Registro formal y trazabilidad del dataset)
+* **Archivos Ejecutables y Scripts**
+    * scraper\_dataset.py (Scraper PRINCIPAL: Multihilo, Semáforos, Mutex)
+    * fast\_download\_transistor.py (Script alterno/de emergencia)
+    * check\_corrupt.py (Script para detectar y registrar imágenes dañadas)
+    * dedupe\_by\_hash.py (Script para eliminación masiva de duplicados por hash SHA-256)
+    * README.md (Documentación principal del proyecto)
+
+## 🧩 Explicación de las Carpetas y Archivos Principales
+
+A continuación se detalla la función de cada directorio y archivo clave dentro de la estructura del proyecto.
+
+---
+
+### 1. `venv/` — Entorno Virtual 🧪
+
+Este directorio es esencial para la gestión de dependencias del proyecto. 
+
+* **Función Principal:** Contiene todas las **dependencias de Python** de forma aislada del sistema operativo principal.
+* **Propósito:**
+    * **Evita conflictos de versiones** con librerías o paquetes instalados globalmente en el sistema.
+    * Aloja librerías específicas utilizadas en el proyecto, como **`requests`**, **`Pillow`**, **`bing_image_downloader`**, **`beautifulsoup4`**, etc.
+    * **Garantiza la portabilidad:** Asegura que cualquier desarrollador que ejecute el proyecto tenga **exactamente el mismo entorno** de trabajo.
+* **Estatus:** Es una carpeta indispensable para el desarrollo profesional y reproducible de proyectos en Python.
+
+---
+
+### 2. `dataset/` — Carpetas con las Imágenes Finales 💾
+
+Este directorio almacena la salida principal del proceso de *scraping* y limpieza: el conjunto de datos final.
+
+* **Función Principal:** Contiene todas las **clases (categorías)** que componen el *dataset*.
+* **Estructura Interna:** Cada clase se representa mediante una subcarpeta dentro de `dataset/`.
+* **Nomenclatura:** Las carpetas de clase tienen un **nombre normalizado** para facilitar el procesamiento posterior por modelos de Machine Learning.
+
+- Ejemplos:
+
+  - breadboard/
+
+  - multimeter/
+
+  - transistor_electronic_component/
+
+  Cada carpeta dentro de `dataset/` contiene las siguientes características después del proceso de curado:
+
+* **Imágenes Válidas:** Solo incluye imágenes que han pasado el proceso de deduplicación (sin duplicados).
+* **Imágenes NO Corruptas:** Todos los archivos han sido verificados y garantizan su integridad estructural.
+* **Cantidad Final:** **Más de 100 imágenes por clase** después de la limpieza.
+
+> **Nota:** Aunque el objetivo inicial era de 200 imágenes por clase, los desafíos inherentes al *scraping* (problemas de precisión en Bing, el exceso de imágenes basura y la enorme cantidad de duplicados) redujeron el total final. Esta limitación cuantitativa se justifica y explica detalladamente en el **README técnico** del proyecto.
+
+---
+
+### 3. `metadata/metadata.csv` — Registro Formal del Dataset 📄
+
+Este archivo es crucial para la **trazabilidad, auditoría y reproducibilidad** del conjunto de datos. En proyectos serios de *Machine Learning* y análisis de datos, el registro formal del origen y estado de cada muestra es un requisito clave.
+
+
+
+**Campos Típicos del `metadata.csv`:**
+
+| Campo | Descripción |
+| :--- | :--- |
+| `image_path` | La ruta relativa al archivo dentro de la carpeta `dataset/`. |
+| `class` | La categoría o etiqueta a la que pertenece la imagen (ej. 'multimeter', 'transistor'). |
+| `resolution` | La resolución de la imagen (ej. '640x480'). |
+| `file_size` | El tamaño del archivo en bytes. |
+| `hash_sha256` | El **hash criptográfico SHA256**, fundamental para la detección de duplicados y la verificación de integridad. |
+| `is_corrupt` | Indicador booleano que registra si la imagen fue marcada como corrupta (debería ser **False** para todas las entradas finales). |
+| `duplicate_of` | Si es un duplicado, registra el `image_path` del archivo original que se conservó. |
+
+## 4. `scraper_dataset.py` — Scraper PRINCIPAL Multihilo (con Semáforos y Mutex)
+
+Este script es el **archivo más importante y central** de todo el proyecto, conteniendo la lógica de concurrencia y la gestión robusta de errores para la descarga de imágenes.
+
+---
+
+### Funcionalidades Clave y Técnicas de Concurrencia
+
+El script implementa técnicas avanzadas de programación concurrente para optimizar el rendimiento y garantizar la integridad de los datos:
+
+* **Uso de Threads (Hilos):**
+    * **Propósito:** Se utilizan para ejecutar la descarga de **múltiples imágenes en paralelo**. 
+    * **Impacto:** Sin la concurrencia, el proceso de *scraping* habría tardado un estimado de **40 a 60 horas**.
+
+* **Uso de Semáforos (`Semaphore`):**
+    * **Función:** Se implementa un **semáforo** para **limitar el número de descargas simultáneas** a un valor seguro (ejemplo: `semaphore = threading.Semaphore(8)`).
+    * **Beneficios:**
+        * Evita **bans temporales** por parte de la fuente (`Bing Images`).
+        * Previene **errores por saturación** del servidor de destino.
+        * Minimiza **timeouts masivos** y el riesgo de saturar la CPU o el ancho de banda local.
+
+* **Uso de Mutex (`Lock`):**
+    * **Necesidad:** El mutex (o `Lock`) es necesario porque, aunque las imágenes se descargan en paralelo, **varios hilos deben escribir simultáneamente** en recursos compartidos, como:
+        * El archivo de registro de metadatos (`metadata.csv`).
+        * **Contadores globales** de progreso o errores.
+    * **Resultado:** El uso del mutex **evita *race conditions*** (condiciones de carrera) y previene la **corrupción** del archivo CSV, garantizando la escritura atómica de los datos.
+
+---
+
+### Gestión de Errores y Almacenamiento
+
+El script garantiza la fiabilidad del proceso de descarga mediante control de calidad y robustez:
+
+* **Descarga con Control de Errores Robusto:**
+    * **Manejo de Timeouts:** Implementa estrategias de reintento ante fallos de conexión o tiempos de espera agotados.
+    * **Retry Automático:** Intenta automáticamente la descarga un número predefinido de veces antes de marcar una tarea como fallida.
+    * **Sanitización del Nombre del Archivo:** Procesa y limpia el nombre del archivo para asegurar la compatibilidad con diferentes sistemas operativos.
+    * **Verificación de Contenido:** Valida que el archivo descargado sea efectivamente una imagen (ej., contenido tipo `image/jpeg`, `image/png`), descartando posibles archivos HTML o corruptos.
+
+* **Guardado y Organización:** Guarda cada imagen en su **carpeta de clase correspondiente** dentro del directorio `dataset/`, manteniendo la estructura organizada.
+
+### 5. `fast_download_transistor.py` — Script Alterno de Emergencia 🚀
+
+Este script fue desarrollado como una **solución de contingencia** para mitigar los problemas de eficiencia y precisión del *scraper* principal en clases problemáticas.
+
+* **Motivación:** Se creó debido a:
+    * El tiempo excesivo de ejecución del *scraper* principal (**más de 10 horas**).
+    * El fallo en completar el objetivo de 200 imágenes en algunas clases.
+    * La alta tasa de **imágenes irrelevantes** (sillas, autos, etc.) devueltas por Bing.
+    * El componente **"transistor"** fue particularmente problemático en la extracción.
+
+* **Implementación:** Utiliza la librería **`bing_image_downloader`**, pero requirió una **modificación interna del módulo** debido a:
+    * Un **bug** relacionado con la función `Path.isdir` en el entorno de desarrollo.
+    * La necesidad de **adaptar el flujo de descarga** para integrarlo con la estructura de carpetas del proyecto.
+
+* **Uso:** Solo se empleó una vez para **completar una clase puntual** (la de transistores) y balancear el *dataset*.
+
+---
+
+### 6. `check_corrupt.py` — Script para Detectar Imágenes Dañadas 🛡️
+
+Este script de post-procesamiento garantiza la **integridad y usabilidad** de todos los archivos descargados.
+
+* **Mecanismo de Verificación:** Revisa iterativamente cada archivo dentro del directorio `dataset/`.
+    * **Proceso:** Intenta abrir la imagen utilizando la librería **PIL (Pillow)**.
+    * **Acción:** Si la apertura falla, la imagen es marcada como **corrupta** y el estado se **registra en `metadata.csv`**. Opcionalmente, el script puede ser configurado para eliminar el archivo físicamente.
+
+* **Importancia Crítica:** Este script fue **crucial** porque:
+    * Bing entregó una cantidad significativamente alta de **imágenes corruptas** o incompletas.
+    * Se detectaron casos de archivos que eran realmente **código HTML disfrazado de JPG** (un error común de *scraping*).
+
+---
+
+### 7. `dedupe_by_hash.py` — Eliminación Masiva de Duplicados ⚙️
+
+Este script asegura la **unicidad** del *dataset*, un paso fundamental para evitar el sesgo en el entrenamiento de modelos de *Machine Learning*.
+
+* **Proceso Central:**
+    * **Cálculo de Hash:** Calcula el **hash SHA-256** de cada imagen. Esta es la técnica más robusta y **garantiza detectar duplicados** incluso si los archivos tienen nombres o metadatos distintos. 
+    * **Eliminación:** **Elimina automáticamente los duplicados reales**. En la ejecución del proyecto, el resultado fue: **Eliminados: 1189** archivos.
+
+* **Justificación de Duplicados:** La alta tasa de duplicados es normal debido a:
+    * La repetición masiva de contenido por parte de la fuente (`Bing`).
+    * La similitud entre las clases del *dataset*.
+    * La tendencia del buscador a devolver **clones reescalados** de la misma imagen.
+
+* **Registro:** **Actualiza el `metadata.csv`**, marcando cuál archivo fue duplicado de cuál, manteniendo un registro de la limpieza.
