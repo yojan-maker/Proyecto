@@ -1,1 +1,8 @@
-
+bing-image-downloader
+pillow
+requests
+numpy
+imagehash
+tqdm
+selenium
+opencv-python-headless
