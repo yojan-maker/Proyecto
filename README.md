@@ -507,13 +507,20 @@ Este script asegura la **unicidad** del *dataset*, un paso fundamental para evit
 ---
 
 ![Image](https://github.com/user-attachments/assets/f1d3aa2e-0535-4a78-ab7a-7c0679a83069)
->- Verificación imagenes corruptas
+>- Limpieza de imagenes
 ---
 
 ![Image](https://github.com/user-attachments/assets/e5b0c03b-132c-475b-97d4-8f8d0a91936d)
+>- Cantidad de imagenes despues de la limpieza
+---
+
+![Image](https://github.com/user-attachments/assets/80ca9f7a-c417-40f2-b8ef-f4cca9ddaeec)
+>- Cantidad de imagenes despues de un nuevo web scrapping y limpieza
+---
 
 
 ![Image](https://github.com/user-attachments/assets/3f6283f9-6d0e-4a83-a686-0a926118ed67)
-
+>- Redimension de imágenes y conteo final
+---
 
 
