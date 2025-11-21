@@ -493,3 +493,27 @@ Este script asegura la **unicidad** del *dataset*, un paso fundamental para evit
     * La tendencia del buscador a devolver **clones reescalados** de la misma imagen.
 
 * **Registro:** **Actualiza el `metadata.csv`**, marcando cuál archivo fue duplicado de cuál, manteniendo un registro de la limpieza.
+
+![Image](https://github.com/user-attachments/assets/87457fb1-c937-48c2-b33d-3907dcc1ac2c)
+>- Carpetas
+---
+
+![Image](https://github.com/user-attachments/assets/f716ea5b-7411-4878-80f3-75370a5ab821)
+>- Dataset luego del primer web scrapping (sin limpieza)
+---
+
+![Image](https://github.com/user-attachments/assets/9ed39431-7098-4396-848e-860c054e8628)
+>- Verificación imagenes corruptas
+---
+
+![Image](https://github.com/user-attachments/assets/f1d3aa2e-0535-4a78-ab7a-7c0679a83069)
+>- Verificación imagenes corruptas
+---
+
+![Image](https://github.com/user-attachments/assets/e5b0c03b-132c-475b-97d4-8f8d0a91936d)
+
+
+![Image](https://github.com/user-attachments/assets/3f6283f9-6d0e-4a83-a686-0a926118ed67)
+
+
+
