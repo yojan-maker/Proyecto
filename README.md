@@ -341,6 +341,8 @@ A continuación se muestra la estructura final del proyecto de Web Scraping con 
     * check\_corrupt.py (Script para detectar y registrar imágenes dañadas)
     * dedupe\_by\_hash.py (Script para eliminación masiva de duplicados por hash SHA-256)
     * README.md (Documentación principal del proyecto)
+  * **Dockerfile**
+  * **requirements.txt**
 
 ## 🧩 Explicación de las Carpetas y Archivos Principales
 
