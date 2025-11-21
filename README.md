@@ -507,7 +507,18 @@ Este script asegura la **unicidad** del *dataset*, un paso fundamental para evit
 ---
 
 ![Image](https://github.com/user-attachments/assets/f1d3aa2e-0535-4a78-ab7a-7c0679a83069)
->- Limpieza de imagenes
+>- Limpieza de imagenes 
+---
+![Image](https://github.com/user-attachments/assets/7a29297c-70a9-456e-8e5b-2bf1c23a2d70)
+>- Limpieza semantica de imagenes ejemplo 1
+---
+
+![Image](https://github.com/user-attachments/assets/e6d7a427-5322-43e7-8d54-0ef314cc91fc)
+>- Limpieza semantica de imagenes ejemplo 2
+---
+
+![Image](https://github.com/user-attachments/assets/3f3d7489-9a38-4b8d-ad4f-1af62686d606)
+>- Limpieza semantica de imagenes ejemplo 3
 ---
 
 ![Image](https://github.com/user-attachments/assets/e5b0c03b-132c-475b-97d4-8f8d0a91936d)
