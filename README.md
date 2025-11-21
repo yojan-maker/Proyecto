@@ -1,5 +1,4 @@
-
-# PUNTO 1 — Web Scrapping
+# PUNTO 1 y 2 —  Extracción y Transformación de Datos (Web Scraping + ETL)
 
 # 1. Introducción General
 
@@ -501,6 +500,7 @@ Este script asegura la **unicidad** del *dataset*, un paso fundamental para evit
 ![Image](https://github.com/user-attachments/assets/f716ea5b-7411-4878-80f3-75370a5ab821)
 >- Dataset luego del primer web scrapping (sin limpieza)
 ---
+
 
 ![Image](https://github.com/user-attachments/assets/9ed39431-7098-4396-848e-860c054e8628)
 >- Verificación imagenes corruptas
