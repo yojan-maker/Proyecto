@@ -947,6 +947,27 @@ Las colas de Python usan locking interno, por lo cual:
 - un solo thread lee
 - acceso atómico garantizado
 
+---
+
+## Conclusión General del Proyecto
+
+El desarrollo completo de este proyecto integró de forma coherente y funcional diversas áreas de la ingeniería electrónica, visión por computador, manejo de datos, programación concurrente y despliegue de aplicaciones web. A través de las cuatro fases propuestas, se construyó una solución robusta, eficiente y totalmente operativa que cumple con los requerimientos planteados por la Universidad Santo Tomás.
+
+En primer lugar, se logró implementar un sistema de web scraping avanzado, capaz de adquirir de forma automatizada un volumen considerable de imágenes de elementos electrónicos. Este proceso incluyó el uso intencional de hilos, semáforos, exclusión mutua y colas de tareas, garantizando la integridad del dataset, reduciendo tiempos de ejecución y evitando condiciones de carrera y bloqueos por parte de los servidores externos. El resultado fue una base de datos sólida y estructurada, acompañada de metadatos completos que documentan su procedencia y estado.
+
+En segundo lugar, se construyó un pipeline ETL profesional, responsable de la extracción, depuración, validación, transformación y organización de las imágenes. Este módulo permitió consolidar un dataset final consistente, depurado de duplicados, imágenes corruptas o irrelevantes, y estandarizado para su uso en algoritmos de clasificación. El proceso fue diseñado con una arquitectura escalable y multihilo, capaz de manejar miles de archivos con eficiencia.
+
+En la tercera fase, se integraron dos sistemas de visión por computador en tiempo real:
+
+detección y seguimiento de personas con cálculo de velocidad mediante técnicas basadas en centroides,
+
+detección de componentes electrónicos utilizando un modelo YOLO personalizado.
+
+Ambos sistemas fueron unificados dentro de una arquitectura concurrente que permite procesar video en vivo de forma fluida y confiable, respetando los principios de sincronización, paralelismo y estabilidad.
+
+Finalmente, la totalidad de la solución fue empaquetada y desplegada como una aplicación web interactiva mediante Streamlit, permitiendo visualizar simultáneamente la detección de personas y componentes, así como las métricas de velocidad. El proceso incluyó la integración en un contenedor Docker completamente funcional y su publicación en DockerHub, otorgándole portabilidad, reproducibilidad y facilidad de ejecución en cualquier entorno.
+
+Este proyecto representa un ejercicio completo de ingeniería aplicada, combinando conceptos avanzados de concurrencia, procesamiento de imágenes, administración de datos, aprendizaje automático y despliegue en la nube. El resultado final es una plataforma integral, modular, bien documentada y alineada con las necesidades tecnológicas contemporáneas de la universidad.
 
 ## Autores y contribuciones 
 
@@ -1076,6 +1097,8 @@ Las colas de Python usan locking interno, por lo cual:
 	- Estructura del proyecto.
 
 	- Instrucciones de ejecución e instalación.
+
+---
 
 
 👤 Colaborador Secundario — Cristian Losada
