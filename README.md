@@ -681,3 +681,74 @@ Que guardan la última imagen válida de cada pipeline.
 ![Prueba con RaspBerryPi](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%203.jpeg?raw=true)
 
 ![Prueba con Osciloscopio](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%204.jpeg?raw=true)
+
+------------
+
+## 🧩 6. Scripts Auxiliares
+
+### 6.1. generate_class_names.py
+
+Genera automáticamente class_names.json según subcarpetas del dataset.
+
+Ideal para:
+
+- Clasificadores
+- Keras
+- Exportación dinámica
+
+### 6.2. train_classifier.py
+
+Entrena un modelo CNN basado en MobileNetV2:
+
+- Data augmentation
+- EarlyStopping
+- Checkpoints
+- LR scheduler
+- Exporta model.h5
+
+### 6.3. utils_tracker.py
+
+Versión modular del CentroidTracker.
+
+Incluye:
+
+- Registro
+- Deregistro
+- Distancias
+- Historial
+- Cálculo de velocidad
+
+------------
+
+## 🐳 7. Dockerización del Proyecto
+
+El archivo principal es:
+
+✔️ Dockerfile_mediapipe
+
+Incluye:
+
+🧩 Base ligera:
+    FROM python:3.10-slim
+
+🏗️ Instalación de dependencias del sistema:
+
+- libgl1-mesa-glx → OpenCV
+- libglib2.0-0
+- libgomp1 → necesaria para YOLO
+
+🧪 Instalación de dependencias Python:
+
+    pip install --no-cache-dir -r requirements.txt
+
+▶️ Comando de ejecución:
+
+    streamlit run streamlitapp.py --server.port=8501 --server.address=0.0.0.0
+
+### Proceso de Dockerizacion
+
+![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock1.jpeg?raw=true)
+
+![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock3.jpeg?raw=true)
+
+![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock4.jpeg?raw=true)
