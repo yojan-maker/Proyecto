@@ -536,4 +536,38 @@ Este script asegura la **unicidad** del *dataset*, un paso fundamental para evit
 >- Redimension de imágenes y conteo final
 ---
 
+# Punto 3 - Sistema de Detección en Tiempo Real con Streamlit, YOLO, Seguimiento de Velocidad y Docker 🐳
 
+En este punto  se integra un sistema completo para visión artificial en tiempo real, combinando:
+
+- Detección de personas
+- Cálculo de velocidad por seguimiento con Centroid Tracking
+- Detección de componentes electrónicos (osciloscopio, multímetro, raspberry…) con YOLO personalizado
+- Procesamiento paralelo (multithreading) con semaforización natural usando colas
+- Interfaz web en tiempo real desarrollada en Streamlit
+- Contenedorización con Docker
+- Entrenamiento de un clasificador CNN
+- Generación automática de clases
+
+------------
+
+## 🏗️ 1. Arquitectura General del Proyecto
+
+El sistema se divide en módulos independientes que cooperan:    ┌────────────────────────────┐
+    │   Streamlit (Frontend)     │
+    └──────────────┬─────────────┘
+                   │
+            Actualización UI
+                   │
+    ┌──────────────▼──────────────┐
+    │        Procesos              │
+    │  (Threads independientes)    │
+    ├──────────────┬───────────────┤
+    │              │               │
+    ▼              ▼               ▼
+    Captura     Personas         Componentes
+      |        (Tracking)           (YOLO)
+      |             |                |
+      └──────► Cola Q ◄─────────────┘
+
+Cada módulo corre en un hilo separado, sincronizado mediante queues, que funcionan como buffers que evitan bloqueos y regulan el acceso concurrente (semaforización implícita).
