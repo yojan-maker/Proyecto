@@ -592,39 +592,152 @@ Cada módulo corre en un hilo separado, sincronizado mediante queues, que funcio
 
 ------------
 
+# Punto 3 - Sistema de Detección en Tiempo Real con Streamlit, YOLO, Seguimiento de Velocidad y Docker 🐳
+
+En este punto  se integra un sistema completo para visión artificial en tiempo real, combinando técnicas avanzadas de visión artificial, arquitectura concurrente y despliegue en contenedores. A continuación se explica el funcionamiento interno hasta las decisiones de diseño tomadas durante el desarrollo.
+
+------------
+
+## 📌 Contenido
+
+1. Arquitectura completa del sistema
+2. Módulo de captura
+3. Módulo de seguimiento y velocidad
+4. Hilo de detección por YOLO
+5. Interfaz visual con Streamlit
+6. Scripts auxiliares
+7. Dockerización completa
+8. Errores encontrados y decisiones de diseño
+9. Explicación profunda de hilos, semáforos y mutex
+10. 
+
+------------
+
+## 🏗️ 1. Arquitectura General del Sistema
+
+El sistema fue diseñado bajo procesamiento paralelo, manteniendo una UI fluida incluso mientras:
+
+- Se captura video en tiempo real
+- Se procesan personas y su velocidad
+- Se ejecutan modelos YOLO personalizados
+- Se actualiza la interfaz en dos paneles simultáneamente
+
+Esto se logra mediante tres hilos principales:
+
+    ┌──────────────────────────────┐
+    │       Streamlit (UI)         │
+    └───────────────┬──────────────┘
+                    │
+            Actualización de la UI
+                    │
+       ┌────────────▼────────────┐
+       │      Procesos (threads) │
+       └──────────┬──────┬───────┘
+                  │      │
+       ┌──────────▼──┐ ┌─▼─────────────┐
+       │ CapturaVideo │ │ YOLOComponent │
+       └───────┬──────┘ └───────┬───────┘
+               │                │
+        Frame duplicado      Frame duplicado
+               │                │
+       ┌───────▼──────┐   ┌────▼────────┐
+       │ Cola personas │   │ Cola comp   │
+       └───────┬──────┘   └────┬────────┘
+               ▼               ▼
+     ┌──────────────────────────────────────┐
+     │         PersonProcessor              │
+     └──────────────────────────────────────┘
+
+Cada módulo corre en un hilo separado, sincronizado mediante queues, que funcionan como buffers que evitan bloqueos y regulan el acceso concurrente (semaforización implícita).
+
+Los Queue(maxsize=2) actúan como:
+
+✔ mini-buffers
+✔ semáforos implícitos
+✔ reguladores de concurrencia
+✔ anti-lag para evitar cuellos de botella
+
+------------
+
+## 🎥 2. Módulo de Captura de Video — VideoCaptureThread
+
+📌 Encargado de:
+
+- Abrir la cámara
+- Leer frames continuamente (sin bloquear la interfaz)
+- Duplicar cada frame hacia dos pipelines independientes:
+	- frame_q_person → Detección y velocidad
+	- frame_q_comp → YOLO componentes
+
+✔️ Se usa time.sleep(0.01) para evitar overrun
+✔️ El hilo es daemon, cierra automáticamente
+✔️ Los buffers Queue(maxsize=2) cumplen función de mutex + semáforo
+
+- Si la cola está llena, descarta entrada → evita backpressure
+
+Este hilo es el corazón del sistema porque:
+
+### ✔ Evita que Streamlit se bloquee
+
+Un error común es capturar frames directamente dentro de Streamlit, lo cual congela la UI.
+Aquí, capturamos en un hilo dedicado.
+
+### ✔ Duplicación de frames
+
+Cada frame leído se divide hacia dos pipelines independientes:
+
+- personas → análisis de velocidad
+- componentes → YOLO personalizado
+
+Esto es más eficiente que abrir la cámara dos veces.
+
+### ✔ ¿Cómo funciona la semaforización?
+
+La cola funciona como un semáforo:
+
+- Si la cola está llena → descarta frames viejos
+- Si está vacía → el thread consumidor espera
+
+Esto evita condiciones de carrera.
+
+------------
+
 ## 🏃‍♂️💨 3. Seguimiento y Velocidad — PersonProcessor
 
-Este módulo calcula:
+Este módulo combina:
 
-✔️ Detecta personas
+### 1️⃣ Detección de personas
 
-Usando:
+Preferencia:
 
-- MobileNetSSD (si existe en carpeta)
-- Ó YOLOv11n como fallback
+1. MobileNetSSD (ligero, eficiente)
+2. YOLOv11n (si no está MobileNet)
 
-✔️ Realiza seguimiento con el algoritmo CentroidTracker
+### 2️⃣ CentroidTracker personalizado
+
+El sistema identifica cada persona con un ID constante.
 
 Incluye:
 
-- Registro/deregistro de objetos
-- Manejo de desapariciones
-- Historial de centroides por ID
+- Registro
+- Desaparición gradual
+- Reasignación inteligente por distancias
 
-✔️ Calcula velocidad:
+### 3️⃣ Cálculo real de velocidad
 
-velocidad = distancia en pixeles×pixels_to_m / t
+Sistema basado en:
 
-Parámetro configurable desde la UI:
+    velocidad = distancia_en_metros / tiempo
 
-    pixels_to_m = 0.004
+Donde:
 
-✔️ Devuelve al sistema:
+    metros = pixeles * pixels_to_m
 
-- Centroides
-- ID persistente
-- Velocidad en m/s
-- Frame con anotaciones
+Este valor se calibra desde la UI.
+
+### 4️⃣ Suavizado con historial
+
+Historial de centroides → evita ruido → velocidad estable.
 
 ------------
 
@@ -634,15 +747,16 @@ Este módulo carga el modelo YOLO personalizado:
 
     /home/arley/segmentacion/model/best.pt
 
-Detecta:
+Clases detectadas:
 
 - Multímetro
 - Osciloscopio
 - Raspberry Pi
 
-✔️ Se desactiva verbose para evitar spam
-✔️ Se seleccionan colores diferentes para cada clase
-✔️ También usa colas para semaforización
+✔ Verbose desactivado → más rendimiento
+✔ Colores distintos por clase
+✔ También usa colas para semaforización
+✔ Procesamiento completamente paralelo a personas
 
 ------------
 
@@ -652,8 +766,9 @@ La UI incluye:
 
 ✔️ Dos columnas principales
 
-- Izquierda: detección de personas + velocidad
-Derecha: detección de componentes (YOLO)
+| Izquierda            | Derecha          |
+| -------------------- | ---------------- |
+| Personas + velocidad | YOLO componentes |
 
 ✔️ Botones de control
 
@@ -672,7 +787,7 @@ Gracias a:
 - last_person_img
 - last_comp_img
 
-Que guardan la última imagen válida de cada pipeline.
+Se actualiza solo si llega un nuevo frame, evitando “flash”.
 
 ![Prueba del Programa](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%201.jpeg?raw=true)
 
@@ -686,7 +801,7 @@ Que guardan la última imagen válida de cada pipeline.
 
 ## 🧩 6. Scripts Auxiliares
 
-### 6.1. generate_class_names.py
+### 6.1. Generador de clases — generate_class_names.py
 
 Genera automáticamente class_names.json según subcarpetas del dataset.
 
@@ -722,6 +837,8 @@ Incluye:
 
 ## 🐳 7. Dockerización del Proyecto
 
+El proyecto se ejecuta en cualquier servidor gracias al Dockerfile:
+
 El archivo principal es:
 
 ✔️ Dockerfile_mediapipe
@@ -732,6 +849,8 @@ Incluye:
     FROM python:3.10-slim
 
 🏗️ Instalación de dependencias del sistema:
+
+Se instalan:
 
 - libgl1-mesa-glx → OpenCV
 - libglib2.0-0
@@ -747,8 +866,80 @@ Incluye:
 
 ### Proceso de Dockerizacion
 
+1. docker build
+2. docker tag
+3. docker push
+4. subir imagen al registry
+
 ![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock1.jpeg?raw=true)
 
 ![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock3.jpeg?raw=true)
 
 ![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock4.jpeg?raw=true)
+
+------------
+
+## 🧠 8. Problemas Encontrados y Decisiones Tomadas
+
+Este proyecto evolucionó con múltiples pruebas:
+
+### ❌ Primer problema: YOLO y mediapipe en el mismo hilo
+
+Resultado → se bloqueaba la cámara.
+Solución → separar en hilos independientes.
+
+### ❌ Segundo problema: Parpadeo en Streamlit
+
+Causa → Streamlit borra el widget al actualizarlo.
+Solución → mantener last_frame en memoria.
+
+### ❌ Tercer problema: YOLO detectaba personas como multímetros
+
+Causa → modelo con clases incorrectas.
+Solución → mejor dataset y anchors.
+
+### ❌ Problema: pérdida de FPS
+
+Causa → procesamiento simultáneo y pesado
+Solución → Queue(maxsize=2)
+
+------------
+
+## 🔄 9. Explicación Profunda de Concurrencia, Hilos, Semáforos y Mutex
+
+### ✔ Hilos usados
+
+| Hilo                | Función                               |
+| ------------------- | ------------------------------------- |
+| VideoCaptureThread  | captura la cámara                     |
+| PersonProcessor     | detecta personas, calcula velocidades |
+| ComponentsProcessor | YOLO personalizado                    |
+
+### ✔ ¿Dónde está la semaforización?
+
+En las colas Queue:
+
+    frame_q_person = Queue(maxsize=2)
+    frame_q_comp = Queue(maxsize=2)
+
+Esa cola funciona como un semáforo:
+
+- put() bloquea si está llena
+- get() bloquea si está vacía
+
+Lo que evita:
+
+- condiciones de carrera
+- frame duplicados
+- saturación
+- pérdida de sincronización
+
+### ✔ ¿Se usó mutex?
+
+Sí, implícitamente.
+
+Las colas de Python usan locking interno, por lo cual:
+
+- un solo thread escribe
+- un solo thread lee
+- acceso atómico garantizado
