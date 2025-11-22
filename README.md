@@ -882,72 +882,229 @@ https://hub.docker.com/r/yojancg/streamlit-yolo/tags
 
 ------------
 
-## 🧠 8. Problemas Encontrados y Decisiones Tomadas
+##  8. Problemas Encontrados y Decisiones Tomadas
+# ⚙️ Decisiones Técnicas y Arquitectura del Sistema
 
-Este proyecto evolucionó con múltiples pruebas:
+---
 
-### ❌ Primer problema: YOLO y mediapipe en el mismo hilo
+## 2. 🟥 Decisiones Técnicas Tomadas (Justificación)
 
-Resultado → se bloqueaba la cámara.
-Solución → separar en hilos independientes.
+Después de evaluar varios enfoques, el sistema final adoptó la siguiente pila tecnológica para asegurar un rendimiento óptimo en **tiempo real**.
 
-### ❌ Segundo problema: Parpadeo en Streamlit
+### 2.1. MobileNetSSD para detectar personas
+**Razones de Adopción:**
 
-Causa → Streamlit borra el widget al actualizarlo.
-Solución → mantener last_frame en memoria.
+* **Muy ligero:** Implementado en **Caffe**, ideal para entornos con recursos limitados.
+* **Estable en CPU:** Garantiza un rendimiento consistente sin depender de una GPU dedicada.
+* **Rápido:** Alcanza una tasa de **20-40 FPS** (Frames Per Second).
+* **Bounding Boxes Consistentes:** Genera cuadros delimitadores amplios pero estables, ideales para el cálculo de **tracking** y **centroides**.
+* **Ideal para Tracking + Centroides:** Su ligereza y consistencia son perfectas para el subsistema de seguimiento.
+* **Evita Carga Pesada:** Previene el alto consumo de recursos que generaría un modelo más grande como YOLO.
 
-### ❌ Tercer problema: YOLO detectaba personas como multímetros
+**MediaPipe fue descartado** debido a problemas de:
+* ❌ Rendimiento inconsistente.
+* ❌ Compatibilidad en el entorno de producción.
+* ❌ Congelamiento inesperado dentro del _framework_ **Streamlit**.
 
-Causa → modelo con clases incorrectas.
-Solución → mejor dataset y anchors.
+### 2.2. YOLOv11 personalizado SOLO para objetos electrónicos
+Se decidió **no usar un único YOLO para todo** (personas + componentes) debido a que YOLO, aunque potente, presenta los siguientes inconvenientes en este contexto de tiempo real:
 
-### ❌ Problema: pérdida de FPS
+* ❌ **Consume más CPU** por _frame_.
+* ❌ Tiende a detectar **personas como otros objetos**, generando falsos positivos.
+* ❌ Disminuye el **framerate general** del sistema.
+* ❌ Rompe la lógica de cálculo del **tracking**.
+* ❌ Genera **latencias inconsistentes**.
 
-Causa → procesamiento simultáneo y pesado
-Solución → Queue(maxsize=2)
+> **Conclusión:** Dividir los dos procesos de detección (Personas y Componentes) es **obligatorio** en sistemas que requieren una respuesta en **tiempo real**.
+
+### 2.3. Arquitectura Multihilo (3 threads)
+
+Se diseñó un sistema basado en la **Arquitectura Productor-Consumidor** con tres hilos (**threads**) independientes:
+
+| Hilo | Función Principal | Modelo Utilizado |
+| :--- | :--- | :--- |
+| **`VideoCaptureThread`** | 🎥 Lee la cámara continuamente y distribuye frames. | N/A |
+| **`PersonProcessor`** | 🧍 Detecta personas, calcula centroides y estima velocidad. | MobileNetSSD |
+| **`ComponentsProcessor`** | 📱 Detecta componentes electrónicos y devuelve _bounding boxes_. | YOLOv11 Personalizado |
+
+* **Ventaja:** Ninguno de los procesos (detección de personas, detección de componentes) bloquea al otro, manteniendo el flujo de datos constante.
+
+### 2.4. Colas (`Queue`) para sincronizar hilos
+
+Se usaron estructuras de **colas (`Queue`)** para gestionar la comunicación entre hilos:
+
+* **Comunicación Segura:** Permite el intercambio de datos entre hilos sin riesgo.
+* **Evita _Race Conditions_:** Garantiza que los hilos no accedan o modifiquen el mismo recurso simultáneamente.
+* **Buffers Pequeños:** Las colas se configuraron para mantener solo los **frames más recientes (máximo 2)** para:
+    * Evitar desbordamientos de memoria.
+    * Mantener la baja **latencia** y evitar retrasos acumulados (lag).
+
+### 2.5. Persistencia de imágenes para evitar parpadeos
+
+Para mitigar el **flickering** (parpadeo) o la aparición de pantallas negras en la interfaz de usuario:
+
+* **Mecanismo:** Si el detector (YOLO o MobileNetSSD) se demora en procesar un nuevo _frame_, se muestra el **último _frame_ válido** que se procesó correctamente.
+* **Implementación:** Se usa una variable de persistencia como `last_person_img` para almacenar el último resultado consistente.
+
+---
+
+## 3. 🟥 Arquitectura Completa del Sistema (Detallada)
+
+Esta sección explica la arquitectura interna del sistema a nivel de ingeniería de software. 
+
+### 3.1. Captura de Video (`VideoCaptureThread`)
+
+Este hilo es el **único productor de _frames_** en el sistema y se ejecuta de la siguiente manera:
+
+1.  **Independiente:** Se ejecuta de forma asíncrona.
+2.  **Apertura Única:** Abre la cámara (o fuente de video) solo una vez.
+3.  **Lectura Máxima:** Lee los _frames_ a la máxima velocidad que la cámara permite.
+4.  **Clonación y Distribución:** Clona el _frame_ leído y lo envía a **dos colas diferentes**:
+    * `frame_q_person` → Usada por el `PersonProcessor` (para tracking humano).
+    * `frame_q_comp` → Usada por el `ComponentsProcessor` (para detección de componentes con YOLO).
+
+####  Problema del Acceso Múltiple
+Si ambos procesadores intentaran leer la cámara directamente (sin un hilo productor):
+* ❌ Se genera un **conflicto** de acceso al recurso.
+* ❌ Ambos hilos **pelean por la cámara**.
+* ❌ La cámara puede entregar **_null frames_** o imágenes corruptas.
+* ❌ **Streamlit "parpadea"** o se congela.
+
+####  Solución
+* Un **único hilo productor** de _frames_ (`VideoCaptureThread`) que garantiza el acceso serializado y consistente a la fuente de video.
+
 
 ------------
 
-## 🔄 9. Explicación Profunda de Concurrencia, Hilos, Semáforos y Mutex
+### 3.2. PersonProcessor — Detección + Tracking + Velocidad
 
-### ✔ Hilos usados
+Este hilo se encarga del seguimiento humano y del cálculo de movimiento.
 
-| Hilo                | Función                               |
-| ------------------- | ------------------------------------- |
-| VideoCaptureThread  | captura la cámara                     |
-| PersonProcessor     | detecta personas, calcula velocidades |
-| ComponentsProcessor | YOLO personalizado                    |
+**Tareas Principales:**
 
-### ✔ ¿Dónde está la semaforización?
+* Leer _frame_ de su cola (`frame_q_person`).
+* Detectar persona con **MobileNetSSD** (o un YOLOv11n ligero).
+* Generar _bounding boxes_.
+* Actualizar **centroides** con el `CentroidTracker`.
+* Estimar la **velocidad** de la persona.
+* Enviar el resultado final a Streamlit para renderizado.
 
-En las colas Queue:
+**Por qué se usa Tracking basado en Centroides:**
 
-    frame_q_person = Queue(maxsize=2)
-    frame_q_comp = Queue(maxsize=2)
+El algoritmo basado en centroides fue elegido por sus ventajas en sistemas en tiempo real:
 
-Esa cola funciona como un semáforo:
+* Es **extremadamente eficiente** en el uso de CPU.
+* Permite realizar **cálculos de velocidad** precisos.
+* Asocia un **ID único** a cada persona rastreada.
+* Mantiene un **historial de movimiento** para evitar saltos (_jumps_).
+* Es **resistente a oclusión temporal** (si la persona se oculta brevemente).
 
-- put() bloquea si está llena
-- get() bloquea si está vacía
+### 3.3. ComponentsProcessor — Detección con YOLO
 
-Lo que evita:
+Este hilo está dedicado exclusivamente a la identificación de objetos electrónicos.
 
-- condiciones de carrera
-- frame duplicados
-- saturación
-- pérdida de sincronización
+**Tareas Principales:**
 
-### ✔ ¿Se usó mutex?
+* Leer _frame_ de su cola (`frame_q_comp`).
+* Ejecutar el modelo **YOLOv11 personalizado**.
+* Filtrar las clases detectadas (solo componentes electrónicos).
+* Dibujar los _bounding boxes_ consistentes.
+* Enviar el resultado a Streamlit para renderizado.
 
-Sí, implícitamente.
+**Por qué YOLO se usa en Hilo Separado:**
 
-Las colas de Python usan locking interno, por lo cual:
+Ejecutar YOLO en el mismo hilo del `PersonProcessor` (el encargado del _tracking_) tiene consecuencias críticas para el rendimiento:
 
-- un solo thread escribe
-- un solo thread lee
-- acceso atómico garantizado
+* ❌ La **velocidad general cae** drásticamente.
+* ❌ Los **centroides no se actualizan** a tiempo, rompiendo el seguimiento.
+* ❌ La velocidad estimada de la persona puede caer a **0.1 m/s** (lectura errónea).
+* ❌ La aplicación **Streamlit se cuelga** por falta de _frames_.
+
+> **Conclusión:** La separación garantiza que el **tracking humano** (prioridad alta) no se vea afectado por la **detección de componentes** (prioridad media).
+
+### 3.4. Sistema de Sincronización (Mutex Implícitos)
+
+El diseño de la arquitectura elimina la necesidad de usar **mutex** (mecanismos de exclusión mutua) explícitos en Python.
+
+**Razón de la Ausencia de Mutex Explícitos:**
+
+* La estructura `Queue` (Cola) de Python actúa como un **buffer sincronizado**.
+* Cada operación `put()` (escribir) y `get()` (leer) es **atómica** (se completa sin interrupción).
+* Los hilos **no comparten memoria directamente**; se comunican solo a través de la cola.
+
+**Ventajas de este Diseño:**
+
+* ✔ **Evita _race conditions_** (condiciones de carrera) entre los hilos.
+* ✔ Previene la **corrupción de _frames_**.
+* ✔ Garantiza la **consistencia** en los _bounding boxes_ y centroides.
+
+### 3.5. Streamlit — Renderizado Paralelo
+
+Aunque la librería **Streamlit no es inherentemente multihilo**, se utiliza para visualizar las salidas de forma asíncrona.
+
+**Mecanismo de Renderizado:**
+
+* Consume la salida procesada de las colas de resultados.
+* Actualiza la interfaz del usuario con una frecuencia constante (aproximadamente **30-60 ms**).
+* Utiliza **caching simple** (memoria de los últimos _frames_ válidos) para mayor estabilidad.
+* Crea **dos columnas independientes** en la interfaz.
+
+**Objetivo:**
+
+* 📌 **Dos pantallas independientes:** Una dedicada a la **velocidad** y el _tracking_ (salida del `PersonProcessor`) y otra para la **detección de componentes** (salida del `ComponentsProcessor`), sin mezclar las imágenes ni los cálculos en el frontend.
 
 ---
+
+## 4. 🟥 Paso a Paso Completo: Desde el Frame Hasta el Usuario
+
+A continuación se detalla el _pipeline_ completo de procesamiento de datos, desde la captura del _frame_ hasta su visualización en la interfaz de usuario. 
+
+### PASO 1 — La Cámara Entrega un Frame (Productor)
+
+El hilo **`VideoCaptureThread`** es el único responsable de la captura y distribución de la imagen.
+
+* Obtiene el _frame_ desde la fuente de video (cámara).
+* **Clona** el _frame_ para evitar conflictos de acceso.
+* Lo coloca en la cola de personas: **`frame_q_person`**.
+* Lo coloca en la cola de componentes: **`frame_q_comp`**.
+
+> **Frecuencia:** Este proceso ocurre aproximadamente cada **10 ms**, manteniendo la base del sistema lo más actualizada posible.
+
+### PASO 2 — Detección de Personas (PersonProcessor)
+
+El hilo `PersonProcessor` trabaja con la imagen recibida de su cola:
+
+* **Detección:** El modelo **MobileNetSSD** detecta la clase `"person"`.
+* **Bounding Box:** Genera el rectángulo delimitador.
+* **Centroide:** El rectángulo se convierte en un punto central.
+* **Tracking:** El **`CentroidTracker`** asigna un **ID único** y mantiene un historial de movimiento.
+* **Cálculo:** Se calculan las distancias recorridas y se determina la **velocidad real en m/s**.
+* **Salida:** El _frame_ con los elementos procesados se pasa a Streamlit para su renderizado.
+
+### PASO 3 — Detección de Componentes (ComponentsProcessor)
+
+El hilo `ComponentsProcessor` se enfoca en la identificación de equipo electrónico:
+
+* **Detección:** El modelo **YOLOv11 personalizado** detecta clases específicas (ej. multímetro, osciloscopio, raspberry).
+* **Filtrado:** Se descartan las clases detectadas que no son relevantes para el objetivo.
+* **Bounding Boxes:** Se calculan los cuadros delimitadores para los objetos filtrados.
+* **Rotulación:** Se **colorea y rotula** el cuadro según el tipo de componente.
+* **Salida:** El _frame_ con las detecciones se envía a Streamlit.
+
+### PASO 4 — Streamlit Actualiza UI (Consumidor Final)
+
+La aplicación **Streamlit** realiza la visualización de los dos _pipelines_ de forma **paralela**:
+
+| Columna Izquierda (PersonProcessor) | Columna Derecha (ComponentsProcessor) |
+| :--- | :--- |
+| Imagen procesada con **personas y centroides**. | **Detecciones YOLO** de componentes electrónicos. |
+| **Velocidad** mostrada en tiempo real junto a cada persona. | Objetos **rotulados y coloreados** según su tipo. |
+
+> 🔒 **Mecanismo de Persistencia:** Si alguno de los hilos de procesamiento (`PersonProcessor` o `ComponentsProcessor`) se retrasa en la entrega de un _frame_, la interfaz usa el último _frame_ válido almacenado en **`last_person_img`** o **`last_comp_img`**. **Esto elimina el parpadeo (flickering)** y garantiza la estabilidad visual.
+
+
+---
+
 
 ## Conclusión General del Proyecto
 
@@ -1106,7 +1263,7 @@ Este proyecto representa un ejercicio completo de ingeniería aplicada, combinan
 
 Contribución: Participación limitada en la parte documental
 
-- Cristian Losada realizó una contribución mucho y menor, enfocada únicamente en:
+- Cristian Losada realizó una contribución  casi nula, enfocada únicamente en:
 
 	- Escribir un fragmento final parcial del README **inconcluso**.
 
