@@ -877,6 +877,9 @@ Se instalan:
 
 ![Dockerizacion](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/dock4.jpeg?raw=true)
 
+Dockerhub
+https://hub.docker.com/r/yojancg/streamlit-yolo/tags
+
 ------------
 
 ## 🧠 8. Problemas Encontrados y Decisiones Tomadas
