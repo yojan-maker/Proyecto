@@ -1263,7 +1263,7 @@ Este proyecto representa un ejercicio completo de ingeniería aplicada, combinan
 
 Contribución: Participación limitada en la parte documental
 
-- Cristian Losada realizó una contribución  casi nula, enfocada únicamente en:
+- Cristian Losada realizó una muy poca contribución , enfocada únicamente en:
 
 	- Escribir un fragmento final parcial del README **inconcluso**.
 
