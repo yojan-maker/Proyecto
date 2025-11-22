@@ -571,3 +571,57 @@ El sistema se divide en módulos independientes que cooperan:    ┌────
       └──────► Cola Q ◄─────────────┘
 
 Cada módulo corre en un hilo separado, sincronizado mediante queues, que funcionan como buffers que evitan bloqueos y regulan el acceso concurrente (semaforización implícita).
+
+------------
+
+## 🎥 2. Módulo de Captura de Video — VideoCaptureThread
+
+📌 Encargado de:
+
+- Abrir la cámara
+- Leer frames continuamente (sin bloquear la interfaz)
+- Duplicar cada frame hacia dos pipelines independientes:
+	- frame_q_person → Detección y velocidad
+	- frame_q_comp → YOLO componentes
+
+✔️ Se usa time.sleep(0.01) para evitar overrun
+✔️ El hilo es daemon, cierra automáticamente
+✔️ Los buffers Queue(maxsize=2) cumplen función de mutex + semáforo
+
+- Si la cola está llena, descarta entrada → evita backpressure
+
+------------
+
+## 🏃‍♂️💨 3. Seguimiento y Velocidad — PersonProcessor
+
+Este módulo calcula:
+
+✔️ Detecta personas
+
+Usando:
+
+- MobileNetSSD (si existe en carpeta)
+- Ó YOLOv11n como fallback
+
+✔️ Realiza seguimiento con el algoritmo CentroidTracker
+
+Incluye:
+
+- Registro/deregistro de objetos
+- Manejo de desapariciones
+- Historial de centroides por ID
+
+✔️ Calcula velocidad:
+
+velocidad = distancia en pixeles×pixels_to_m / t
+
+Parámetro configurable desde la UI:
+
+    pixels_to_m = 0.004
+
+✔️ Devuelve al sistema:
+
+- Centroides
+- ID persistente
+- Velocidad en m/s
+- Frame con anotaciones
