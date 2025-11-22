@@ -1,0 +1,9 @@
+venv
+dataset
+dataset_preprocessed
+dataset_split
+*.pt
+*.h5
+__pycache__
+*.log
+.git
