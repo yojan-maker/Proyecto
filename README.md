@@ -625,3 +625,59 @@ Parámetro configurable desde la UI:
 - ID persistente
 - Velocidad en m/s
 - Frame con anotaciones
+
+------------
+
+## 🛠️ 4. Detección de Componentes — ComponentsProcessor
+
+Este módulo carga el modelo YOLO personalizado:
+
+    /home/arley/segmentacion/model/best.pt
+
+Detecta:
+
+- Multímetro
+- Osciloscopio
+- Raspberry Pi
+
+✔️ Se desactiva verbose para evitar spam
+✔️ Se seleccionan colores diferentes para cada clase
+✔️ También usa colas para semaforización
+
+------------
+
+## 🖥️ 5. Interfaz Web con Streamlit — streamlit_app.py
+
+La UI incluye:
+
+✔️ Dos columnas principales
+
+- Izquierda: detección de personas + velocidad
+Derecha: detección de componentes (YOLO)
+
+✔️ Botones de control
+
+- Iniciar
+- Detener
+
+✔️ Sidebar editable
+
+- Índice de cámara
+- Factor de calibración pixels_to_m
+
+✔️ Actualización fluida sin parpadeo
+
+Gracias a:
+
+- last_person_img
+- last_comp_img
+
+Que guardan la última imagen válida de cada pipeline.
+
+![Prueba del Programa](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%201.jpeg?raw=true)
+
+![Prueba con Multimetro](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%202.jpeg?raw=true)
+
+![Prueba con RaspBerryPi](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%203.jpeg?raw=true)
+
+![Prueba con Osciloscopio](https://github.com/yojan-maker/Proyecto/blob/main/Proyecto/Mediapipe_Yolo/yolo%204.jpeg?raw=true)
